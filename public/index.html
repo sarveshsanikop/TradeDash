@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeDash </title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #f3f4f6 0%, #ede9fe 100%);
+            --bg-surface: #ffffff;
+            --bg-input: #f9fafb;
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --text-main: #020617;
+            --text-muted: #475569;
+            --success: #059669;
+            --danger: #dc2626;
+            --border: #e2e8f0;
+            --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --radius-xl: 16px;
+            --radius-lg: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container { width: 100%; display: flex; justify-content: center; }
+
+        /* --- AUTH SCREEN --- */
+        #auth-screen {
+            background: var(--bg-surface);
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 420px;
+            border-radius: var(--radius-xl);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        #auth-screen h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; color: var(--text-main); letter-spacing: -1px; }
+        .subtitle { font-size: 1.05rem; color: var(--text-muted); margin-bottom: 32px; font-weight: 500; }
+
+        input {
+            width: 100%; padding: 16px; margin-bottom: 16px;
+            background: var(--bg-input); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); outline: none;
+            font-size: 1.05rem; font-weight: 500;
+            color: var(--text-main); transition: all 0.2s ease;
+        }
+        input:focus { background: white; border-color: var(--primary); }
+
+        button#auth-btn {
+            width: 100%; padding: 16px; background: var(--text-main);
+            color: white; border: none; border-radius: var(--radius-lg);
+            font-weight: 700; font-size: 1.1rem; cursor: pointer;
+            transition: all 0.2s ease; margin-top: 8px;
+        }
+        button#auth-btn:hover { background: #1e293b; transform: translateY(-1px); }
+        
+        .toggle-link { margin-top: 24px; color: var(--text-muted); font-size: 0.95rem; font-weight: 600; cursor: pointer; display: inline-block; }
+        .toggle-link:hover { color: var(--primary); text-decoration: underline; }
+        
+        #message-box { min-height: 20px; margin-top: 15px; font-weight: 600; font-size: 0.95rem; }
+        .error { color: var(--danger); } .success { color: var(--success); }
+
+        /* --- DASHBOARD --- */
+        #dashboard {
+            display: none;
+            width: 100%;
+            max-width: 1400px;
+            padding-top: 150px;
+            padding-left: 240px; 
+        }
+
+        .dashboard-top {
+            position: fixed;
+            top: 20px; left: 50%; transform: translateX(-50%);
+            width: 95%; max-width: 1400px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 24px;
+            padding: 16px 32px;
+            z-index: 100;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            display: flex; flex-direction: column; gap: 16px;
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .header h2 { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.5px; color: var(--text-main); }
+
+        .user-controls { display: flex; align-items: center; gap: 12px; }
+        #user-display {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-input); color: var(--text-muted);
+            padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);
+            font-size: 0.95rem; font-weight: 700;
+        }
+
+        .logout-btn {
+            background: #fef2f2; border: 1px solid #fee2e2; color: var(--danger);
+            padding: 10px 18px; border-radius: 8px; font-weight: 700;
+            cursor: pointer; font-size: 0.85rem; transition: all 0.2s;
+        }
+        .logout-btn:hover { background: var(--danger); color: white; border-color: var(--danger); }
+
+        /* --- SIDEBAR --- */
+        .stock-sidebar {
+            position: fixed; top: 150px; left: 40px; width: 220px; 
+            background: white; border: 1px solid var(--border);
+            border-radius: var(--radius-xl); padding: 24px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); z-index: 90;
+        }
+        
+        .stock-sidebar::before {
+            content: "MARKETS"; display: block;
+            font-size: 0.8rem; font-weight: 800; color: var(--text-main); 
+            letter-spacing: 0.5px; opacity: 0.7; margin-bottom: 15px;
+        }
+
+        #sub-buttons { display: flex; flex-direction: column; gap: 10px; }
+
+        .stock-btn {
+            background: white; border: 1px solid var(--border);
+            color: var(--text-muted); padding: 12px 18px; border-radius: 8px;
+            cursor: pointer; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+            transition: all 0.2s; font-size: 0.9rem; width: 100%;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .stock-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+        .stock-btn.active {
+            background: var(--text-main); color: white; border-color: var(--text-main);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+        }
+        
+        .btn-price-display { font-size: 0.85rem; opacity: 0.9; font-weight: 600; }
+
+        /* --- SUBSCRIBED AREA (Compact Adjustments) --- */
+        .subscribed-section {
+            background: white; border: 1px solid var(--border);
+            border-radius: var(--radius-xl); padding: 24px;
+            min-height: 200px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .subscribed-section h3 {
+            font-size: 1.1rem; font-weight: 800; color: var(--text-muted);
+            margin-bottom: 24px; letter-spacing: 0.5px;
+            text-transform: uppercase; border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        /* Reduced Grid Min Width to 240px and gap to 16px */
+        .cards-container {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;
+        }
+        
+        .cards-container:empty::before {
+            content: "Select a stock from the menu on the left to add it here.";
+            color: var(--text-muted); display: flex; justify-content: center; align-items: center;
+            height: 100px; width: 100%; grid-column: 1 / -1; 
+            font-size: 1.1rem; font-weight: 600; font-style: italic; opacity: 0.6;
+        }
+
+        /* Compact Card Styling */
+        .stock-card {
+            background: white; border: 1px solid var(--border);
+            border-radius: var(--radius-xl); 
+            padding: 16px; /* Reduced from 24px */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.2s;
+        }
+        .stock-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; /* Reduced from 20px */ }
+        
+        /* Font adjustments for smaller card */
+        .stock-info h3 { font-size: 1.5rem; /* Reduced from 2rem */ font-weight: 900; margin-bottom: 4px; letter-spacing: -1px; color: var(--text-main); }
+        .stock-info span { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px; }
+
+        .entry-label {
+            display: block; margin-top: 6px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 600;
+            color: var(--text-muted); background: var(--bg-input);
+            padding: 4px 8px; border-radius: 6px; width: fit-content;
+        }
+        
+        .price-container { text-align: right; }
+        
+        .price { 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 1.75rem; /* Reduced from 2.4rem */
+            font-weight: 800; letter-spacing: -1px; display: block; 
+        }
+        .price-up { color: var(--success); }
+        .price-down { color: var(--danger); }
+        
+        .change-label { 
+            font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; 
+            margin-top: 2px; display: block;
+        }
+        .change-up { color: var(--success); }
+        .change-down { color: var(--danger); }
+
+        .chart-container { height: 80px; /* Reduced from 120px */ width: 100%; }
+
+        /* --- TOAST NOTIFICATIONS --- */
+        #toast-container {
+            position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        .toast {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            display: flex; align-items: center; gap: 12px;
+            transform: translateX(120%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            font-weight: 600; font-size: 0.95rem; color: var(--text-main);
+            min-width: 250px;
+        }
+
+        .toast.show { transform: translateX(0); }
+        
+        .toast-success { border-left: 4px solid var(--success); }
+        .toast-success::before { content: "✓"; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; background: #dcfce7; color: var(--success); border-radius: 50%; font-size: 12px; font-weight: 800; }
+        
+        .toast-info { border-left: 4px solid var(--text-muted); }
+        .toast-info::before { content: "i"; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; background: #f1f5f9; color: var(--text-muted); border-radius: 50%; font-size: 12px; font-weight: 800; font-family: 'JetBrains Mono'; }
+
+        @media (max-width: 900px) {
+            .dashboard-top { width: 95%; padding: 20px; top: 10px; }
+            .stock-sidebar { left: 10px; width: 180px; }
+            #dashboard { padding-left: 210px; }
+        }
+        @media (max-width: 600px) {
+             .header { flex-direction: column; align-items: flex-start; gap: 10px; }
+             .stock-sidebar { position: relative; top: 0; left: 0; width: 100%; margin-bottom: 20px; }
+             #dashboard { padding-left: 0; padding-top: 180px; }
+             #toast-container { left: 20px; right: 20px; bottom: 20px; }
+             .toast { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div class="container">
+    <div id="auth-screen">
+        <h1>TradeDash</h1>
+        <p class="subtitle">Real-time market analytics</p>
+        <input type="text" id="nameInput" placeholder="Full Name" style="display: none;" minlength="2">
+        <input type="email" id="emailInput" placeholder="Email ID" required>
+        <input type="password" id="passInput" placeholder="Password" required minlength="4">
+        <button id="auth-btn" onclick="handleAuth()">Login to Dashboard</button>
+        <div id="message-box"></div>
+        <span class="toggle-link" onclick="toggleAuthMode()" id="toggle-text">Create New Account</span>
+    </div>
+
+    <div id="dashboard">
+        <div class="dashboard-top">
+            <div class="header">
+                <h2>MARKET <span style="color: var(--primary)">OVERVIEW</span></h2>
+                <div class="user-controls">
+                    <div id="user-display"></div>
+                    <button class="logout-btn" onclick="handleLogout()">LOGOUT</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stock-sidebar">
+            <div id="sub-buttons">
+                </div>
+        </div>
+
+        <div class="subscribed-section">
+            <h3>SUBSCRIBED STOCKS</h3>
+            <div id="live-stocks" class="cards-container"></div>
+        </div>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io();
+    let isRegisterMode = false;
+    let currentUserEmail = null;
+    let visibleStocks = new Set(); 
+    let stockCharts = {}; 
+    let entryPrices = {}; 
+    let currentPrices = {}; 
+
+    // --- SLOW SAFETY QUEUE (800ms) ---
+    const emitQueue = [];
+    let isQueueProcessing = false;
+
+    function queueEmit(event, data) {
+        emitQueue.push({ event, data });
+        processQueue();
+    }
+
+    function processQueue() {
+        if (isQueueProcessing || emitQueue.length === 0) return;
+        
+        isQueueProcessing = true;
+        const task = emitQueue.shift();
+        
+        console.log(`Sending to server: ${task.event} for ${task.data.stockCode}`); 
+        socket.emit(task.event, task.data);
+        
+        setTimeout(() => {
+            isQueueProcessing = false;
+            processQueue();
+        }, 800); 
+    }
+
+    // --- TOAST NOTIFICATION SYSTEM ---
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerText = message;
+        container.appendChild(toast);
+
+        // Trigger animation
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 400); // Wait for slide out animation
+        }, 3000);
+    }
+
+    // --- SESSION RESTORE ---
+    socket.on('connect', () => {
+        if(currentUserEmail) {
+            const e = document.getElementById('emailInput').value;
+            const p = document.getElementById('passInput').value;
+            if(e && p) socket.emit('login', { email: e, password: p });
+        }
+    });
+
+    // --- AUTH ---
+    const authScreen = document.getElementById('auth-screen');
+    const dashboard = document.getElementById('dashboard');
+    const nameInput = document.getElementById('nameInput');
+    const emailInput = document.getElementById('emailInput');
+    const passInput = document.getElementById('passInput');
+    const authBtn = document.getElementById('auth-btn');
+    const toggleText = document.getElementById('toggle-text');
+    const messageBox = document.getElementById('message-box');
+
+    function toggleAuthMode() {
+        isRegisterMode = !isRegisterMode;
+        messageBox.innerText = ''; 
+        if (isRegisterMode) {
+            authBtn.innerText = "Create Account"; nameInput.style.display = "block"; toggleText.innerText = "Back to Login";
+        } else {
+            authBtn.innerText = "Login to Dashboard"; nameInput.style.display = "none"; toggleText.innerText = "Create New Account";
+        }
+    }
+
+    function handleAuth() {
+        const email = emailInput.value;
+        const password = passInput.value;
+        const name = nameInput.value;
+        if (!email || !password) return showMessage("Credentials missing", "error");
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) return showMessage("Invalid email format.", "error");
+
+        const event = isRegisterMode ? 'register' : 'login';
+        socket.emit(event, { name, email, password });
+    }
+
+    function handleLogout() {
+        location.reload(); 
+    }
+
+    socket.on('authError', (msg) => showMessage(msg, "error"));
+    socket.on('registerSuccess', (msg) => { showMessage(msg, "success"); setTimeout(toggleAuthMode, 1500); });
+    
+    // --- LOGIN SUCCESS ---
+    socket.on('loginSuccess', (data) => {
+        if (currentUserEmail === data.email) return;
+
+        currentUserEmail = data.email;
+        authScreen.style.display = 'none';
+        dashboard.style.display = 'block';
+        document.getElementById('user-display').innerHTML = `TRADER: <b>${data.name.toUpperCase()}</b>`;
+        
+        const subContainer = document.getElementById('sub-buttons');
+        subContainer.innerHTML = '';
+        
+        data.availableStocks.forEach((stock, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'stock-btn';
+            btn.id = `btn-${stock}`;
+            btn.innerHTML = `<span>${stock}</span> <span class="btn-price-display" id="sidebar-price-${stock}">--.--</span>`;
+            btn.onclick = () => toggleSub(stock);
+            subContainer.appendChild(btn);
+
+            // Use 'joinFeed' so we don't save to DB, just get prices
+            setTimeout(() => {
+                socket.emit('joinFeed', { stockCode: stock });
+            }, index * 300);
+        });
+
+        // Load Saved Portfolio
+        if(data.savedSubscriptions && data.savedSubscriptions.length > 0) {
+            data.savedSubscriptions.forEach(sub => {
+                const symbol = sub.symbol;
+                const price = sub.entryPrice;
+                if(symbol) {
+                    if(price) entryPrices[symbol] = price; 
+                    visibleStocks.add(symbol);
+                    const btn = document.getElementById(`btn-${symbol}`);
+                    if(btn) btn.classList.add('active');
+                    setTimeout(() => createCard(symbol), 200); 
+                }
+            });
+        }
+    });
+
+    // --- TOGGLE VIEW (With Toasts & Entry Logic) ---
+    function toggleSub(stockCode) {
+        const btn = document.getElementById(`btn-${stockCode}`);
+        
+        if (visibleStocks.has(stockCode)) {
+            // UNSUBSCRIBE
+            visibleStocks.delete(stockCode);
+            delete entryPrices[stockCode]; // Delete old entry
+
+            btn.classList.remove('active');
+            if(stockCharts[stockCode]) { stockCharts[stockCode].destroy(); delete stockCharts[stockCode]; }
+            const card = document.getElementById(`card-${stockCode}`);
+            if(card) card.remove();
+            
+            showToast(`Unsubscribed from ${stockCode}`, 'info'); // Toast
+            queueEmit('unsubscribe', { stockCode }); 
+            
+        } else {
+            // SUBSCRIBE
+            visibleStocks.add(stockCode);
+            btn.classList.add('active');
+
+            if(currentPrices[stockCode]) {
+                entryPrices[stockCode] = parseFloat(currentPrices[stockCode]);
+            }
+
+            createCard(stockCode);
+            
+            if(entryPrices[stockCode]) {
+                const entryLabel = document.getElementById(`entry-${stockCode}`);
+                if(entryLabel) entryLabel.innerText = `Entry: $${entryPrices[stockCode].toFixed(2)}`;
+            }
+
+            showToast(`Subscribed to ${stockCode}`, 'success'); // Toast
+            queueEmit('subscribe', { stockCode }); 
+        }
+    }
+
+    function createCard(code) {
+        if(document.getElementById(`card-${code}`)) return;
+        
+        let displayEntry = "--";
+        if (entryPrices[code] !== undefined) displayEntry = `$${entryPrices[code].toFixed(2)}`;
+
+        const div = document.createElement('div');
+        div.className = 'stock-card';
+        div.id = `card-${code}`;
+        div.innerHTML = `
+            <div class="card-header">
+                <div class="stock-info">
+                    <h3>${code}</h3>
+                    <span>NASDAQ</span>
+                    <div class="entry-label" id="entry-${code}">Entry: ${displayEntry}</div>
+                </div>
+                <div class="price-container">
+                    <div class="price" id="price-${code}">---.--</div>
+                    <div class="change-label" id="change-${code}">0.00%</div>
+                </div>
+            </div>
+            <div class="chart-container"><canvas id="chart-${code}"></canvas></div>
+        `;
+        document.getElementById('live-stocks').appendChild(div);
+
+        const ctx = document.getElementById(`chart-${code}`).getContext('2d');
+        stockCharts[code] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Price',
+                        data: [],
+                        borderColor: '#059669',
+                        backgroundColor: 'rgba(5, 150, 105, 0.1)', 
+                        borderWidth: 2, tension: 0.3, fill: true, pointRadius: 0,
+                    },
+                    {
+                        label: 'Entry',
+                        data: [],
+                        borderColor: '#64748b', borderWidth: 2, borderDash: [4, 4], pointRadius: 0, fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                scales: { x: { display: false }, y: { display: false } }, animation: false
+            }
+        });
+    }
+
+    // --- DATA HANDLING ---
+    socket.on('loadHistory', (data) => {
+        const prices = data.history.map(h => parseFloat(h.price));
+        const curr = prices[prices.length - 1];
+        
+        currentPrices[data.code] = curr;
+
+        const sidebarEl = document.getElementById(`sidebar-price-${data.code}`);
+        if(sidebarEl) sidebarEl.innerText = `$${curr.toFixed(2)}`;
+
+        if (!entryPrices[data.code]) {
+            entryPrices[data.code] = curr;
+        }
+
+        if(!stockCharts[data.code]) return;
+        
+        const chart = stockCharts[data.code];
+        const entryLabel = document.getElementById(`entry-${data.code}`);
+        if(entryLabel) entryLabel.innerText = `Entry: $${entryPrices[data.code].toFixed(2)}`;
+
+        chart.data.labels = data.history.map(h => h.timestamp);
+        chart.data.datasets[0].data = prices;
+        chart.data.datasets[1].data = new Array(prices.length).fill(entryPrices[data.code]);
+
+        const prev = prices[prices.length - 2] || curr;
+        updateUI(data.code, curr, prev);
+        chart.update();
+    });
+
+    socket.on('priceUpdate', (data) => {
+        const newPrice = parseFloat(data.price);
+        currentPrices[data.code] = newPrice; 
+        
+        const sidebarEl = document.getElementById(`sidebar-price-${data.code}`);
+        if(sidebarEl) {
+            sidebarEl.innerText = `$${newPrice.toFixed(2)}`;
+        }
+
+        if(!visibleStocks.has(data.code)) return;
+        
+        const chart = stockCharts[data.code];
+        if(chart) {
+            const now = new Date().toLocaleTimeString(); 
+            const oldData = chart.data.datasets[0].data;
+            const prevPrice = oldData.length > 0 ? oldData[oldData.length - 1] : newPrice;
+            
+            updateUI(data.code, newPrice, prevPrice);
+
+            chart.data.labels.push(now);
+            chart.data.datasets[0].data.push(newPrice);
+            chart.data.datasets[1].data.push(entryPrices[data.code] || newPrice);
+
+            if(chart.data.labels.length > 100) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+                chart.data.datasets[1].data.shift();
+            }
+            chart.update();
+        }
+    });
+
+    function updateUI(code, current, previous) {
+        const el = document.getElementById(`price-${code}`);
+        const chart = stockCharts[code];
+        
+        if(el) {
+            el.innerText = `$${current.toFixed(2)}`;
+            el.className = `price ${current >= previous ? 'price-up' : 'price-down'}`;
+        }
+
+        const entry = entryPrices[code];
+        if(entry) {
+            const changeEl = document.getElementById(`change-${code}`);
+            const diff = current - entry;
+            const pct = (diff / entry) * 100;
+            const sign = pct >= 0 ? '+' : '';
+            
+            if(changeEl) {
+                changeEl.innerText = `${sign}${pct.toFixed(2)}%`;
+                changeEl.className = `change-label ${pct >= 0 ? 'change-up' : 'change-down'}`;
+            }
+        }
+        
+        if(chart) {
+            const isUp = current >= previous;
+            const color = isUp ? '#059669' : '#dc2626'; 
+            chart.data.datasets[0].borderColor = color;
+            chart.data.datasets[0].backgroundColor = isUp ? 'rgba(5, 150, 105, 0.1)' : 'rgba(220, 38, 38, 0.1)';
+        }
+    }
+    function showMessage(msg, type) { messageBox.innerText = msg; messageBox.className = type; }
+</script>
+</body>
+</html>
