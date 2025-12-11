@@ -4,22 +4,40 @@ const { Server } = require('socket.io');
 const path = require('path');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const fs = require('fs'); // Added file system module
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// --- FIX 1: Serve files from the main folder (fixes "Cannot GET /") ---
-app.use(express.static(__dirname));
+// --- FIX 1: Bulletproof File Serving ---
+// Check if index.html is in the ROOT or in PUBLIC folder
+const rootPath = path.join(__dirname, 'index.html');
+const publicPath = path.join(__dirname, 'public', 'index.html');
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+if (fs.existsSync(publicPath)) {
+    console.log('📂 Found index.html in /public folder');
+    app.use(express.static(path.join(__dirname, 'public')));
+    app.get('/', (req, res) => res.sendFile(publicPath));
+} else {
+    console.log('📂 Found index.html in ROOT folder');
+    app.use(express.static(__dirname));
+    app.get('/', (req, res) => res.sendFile(rootPath));
+}
 
-// --- FIX 2: Use Cloud Database (Environment Variable) ---
-const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/stockDashboard';
-mongoose.connect(mongoURI)
-    .then(() => console.log('✅ Connected to MongoDB'))
+// --- FIX 2: Debug Database Connection ---
+const mongoURI = process.env.MONGO_URI;
+
+if (!mongoURI) {
+    console.error('❌ FATAL ERROR: MONGO_URI is missing in Render Environment Variables!');
+    console.error('   The app is trying to connect to localhost which will fail.');
+} else {
+    console.log('✅ Found MONGO_URI environment variable.');
+}
+
+// Fallback to localhost only if cloud var is missing (will fail on Render but work locally)
+mongoose.connect(mongoURI || 'mongodb://127.0.0.1:27017/stockDashboard')
+    .then(() => console.log('✅ Database Connected Successfully'))
     .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // --- STRICT SCHEMA ---
@@ -59,11 +77,10 @@ STOCKS.forEach(stock => {
     currentPrices[stock] = basePrice.toFixed(2);
     stockHistory[stock] = [];
 
-    // Generate stable history around base price
     let tempPrice = basePrice;
     for(let i = 100; i > 0; i--) {
-        const volatility = (Math.random() - 0.5) * 0.8; // Small fluctuation
-        const pull = (basePrice - tempPrice) * 0.05; // Gentle pull to base
+        const volatility = (Math.random() - 0.5) * 0.8;
+        const pull = (basePrice - tempPrice) * 0.05;
         tempPrice += volatility + pull;
         
         stockHistory[stock].push({
@@ -79,11 +96,7 @@ setInterval(() => {
     STOCKS.forEach(stockCode => {
         const current = parseFloat(currentPrices[stockCode]);
         const base = STOCK_BASE_PRICES[stockCode];
-
-        // Small random noise (-0.20 to +0.20)
         const noise = (Math.random() * 0.4) - 0.2;
-        
-        // Stability Logic: Pull back to base if drifting too far
         const pull = (base - current) * 0.02; 
 
         let newPrice = current + noise + pull;
@@ -126,7 +139,7 @@ io.on('connection', (socket) => {
         } catch (err) { socket.emit('authError', 'Registration failed.'); }
     });
 
-    // 2. LOGIN (WITH AUTO-CORRECT FOR OLD DATA)
+    // 2. LOGIN
     socket.on('login', async ({ email, password }) => {
         try {
             const user = await User.findOne({ email });
@@ -141,7 +154,6 @@ io.on('connection', (socket) => {
             if (user.subscriptions && Array.isArray(user.subscriptions)) {
                 user.subscriptions.forEach(sub => {
                     if (sub && sub.symbol && STOCKS.includes(sub.symbol)) {
-                        
                         const currentP = parseFloat(currentPrices[sub.symbol]);
                         let entryP = sub.entryPrice;
 
@@ -184,7 +196,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 4. SUBSCRIBE (Saves to DB)
+    // 4. SUBSCRIBE
     socket.on('subscribe', async ({ stockCode }) => {
         if (!socket.userEmail) return socket.emit('authError', 'Session expired. Relogin.');
         if (!STOCKS.includes(stockCode)) return;
@@ -194,7 +206,6 @@ io.on('connection', (socket) => {
 
         try {
             console.log(`[DB] Subscribing ${socket.userEmail} to ${stockCode}`);
-            
             await User.updateOne(
                 { email: socket.userEmail },
                 { $pull: { subscriptions: { symbol: stockCode } } }
@@ -210,12 +221,11 @@ io.on('connection', (socket) => {
         socket.emit('loadHistory', { code: stockCode, history: stockHistory[stockCode] });
     });
 
-    // 5. UNSUBSCRIBE (Removes from DB)
+    // 5. UNSUBSCRIBE
     socket.on('unsubscribe', async ({ stockCode }) => {
         if (!socket.userEmail) return;
 
         socket.leave(stockCode);
-        
         try {
             console.log(`[DB] Unsubscribing ${socket.userEmail} from ${stockCode}`);
             await User.updateOne(
@@ -227,18 +237,17 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 6. JOIN FEED (Read-Only)
+    // 6. JOIN FEED
     socket.on('joinFeed', ({ stockCode }) => {
         if (STOCKS.includes(stockCode)) {
             socket.join(stockCode);
         }
     });
 
-    // 7. DISCONNECT
     socket.on('disconnect', (reason) => { });
 });
 
-// --- FIX 3: Use Cloud Port ---
+// --- FIX 3: Dynamic Port ---
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
