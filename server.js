@@ -9,10 +9,16 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static(path.join(__dirname, 'public')));
+// --- FIX 1: Serve files from the main folder (fixes "Cannot GET /") ---
+app.use(express.static(__dirname));
 
-// --- MONGODB CONNECTION ---
-mongoose.connect('mongodb://127.0.0.1:27017/stockDashboard')
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// --- FIX 2: Use Cloud Database (Environment Variable) ---
+const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/stockDashboard';
+mongoose.connect(mongoURI)
     .then(() => console.log('✅ Connected to MongoDB'))
     .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
@@ -136,13 +142,9 @@ io.on('connection', (socket) => {
                 user.subscriptions.forEach(sub => {
                     if (sub && sub.symbol && STOCKS.includes(sub.symbol)) {
                         
-                        // --- SANITY CHECK ---
-                        // If stored Entry Price is wildly different from Current Price (Old Data),
-                        // use Current Price instead.
                         const currentP = parseFloat(currentPrices[sub.symbol]);
                         let entryP = sub.entryPrice;
 
-                        // If difference is > 20%, it's likely junk data from previous runs
                         if (!entryP || Math.abs(entryP - currentP) > (currentP * 0.2)) {
                             entryP = currentP; 
                         }
@@ -155,7 +157,6 @@ io.on('connection', (socket) => {
                 });
             }
 
-            // Restore rooms
             cleanSubs.forEach(sub => {
                 socket.join(sub.symbol);
                 socket.emit('loadHistory', { code: sub.symbol, history: stockHistory[sub.symbol] });
@@ -237,7 +238,8 @@ io.on('connection', (socket) => {
     socket.on('disconnect', (reason) => { });
 });
 
-const PORT = 3001; // Changed to 3001
+// --- FIX 3: Use Cloud Port ---
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
